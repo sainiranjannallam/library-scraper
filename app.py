@@ -29,7 +29,7 @@ def log_message(msg):
     timestamp = time.strftime("%H:%M:%S")
     st.session_state.logs.append(f"[{timestamp}] {msg}")
 
-def process_browse_page(page, start_row, rows_remaining, writer, f, progress_bar, status_text):
+def process_browse_page(page, start_row, rows_remaining, writer, f, progress_bar, status_text, browse_url, base_domain):
     """Process rows on the current browse page starting from start_row."""
     rows = page.locator("table tbody tr")
     total_rows = rows.count()
@@ -51,7 +51,7 @@ def process_browse_page(page, start_row, rows_remaining, writer, f, progress_bar
             page.wait_for_load_state("networkidle", timeout=15000)
         except Exception as e:
             log_message(f"Could not open item row #{i+1}: {e}")
-            page.goto("https://digital.lib.buffalo.edu/admin/items/browse?collection=30")
+            page.goto(browse_url)
             page.wait_for_load_state("networkidle")
             continue
 
@@ -88,7 +88,7 @@ def process_browse_page(page, start_row, rows_remaining, writer, f, progress_bar
                     "xpath=//dt[normalize-space()='Original Filename:']/following-sibling::dd[1]"
                 ).strip()
 
-                full_file_url = f"https://digital.lib.buffalo.edu/files/original/{filename}"
+                full_file_url = f"{base_domain}/files/original/{filename}"
 
                 writer.writerow([item_heading, file_heading, original_filename, full_file_url])
                 f.flush()
@@ -115,10 +115,14 @@ def process_browse_page(page, start_row, rows_remaining, writer, f, progress_bar
 
     return processed
 
-def run_scraper(username, password, loops, skip, headless=True):
+def run_scraper(username, password, loops, skip, browse_url, headless=True):
     """Main scraper function"""
-    BROWSE_URL = "https://digital.lib.buffalo.edu/admin/items/browse?collection=30"
     CSV_FILE = Path("results.csv")
+
+    # Extract base domain from browse_url
+    from urllib.parse import urlparse
+    parsed = urlparse(browse_url)
+    base_domain = f"{parsed.scheme}://{parsed.netloc}"
 
     write_header = not CSV_FILE.exists()
 
@@ -131,7 +135,7 @@ def run_scraper(username, password, loops, skip, headless=True):
             log_message("Launching browser...")
             browser = p.chromium.launch(headless=headless)
             page = browser.new_page()
-            page.goto(BROWSE_URL)
+            page.goto(browse_url)
             page.wait_for_load_state("networkidle")
 
             # Login
@@ -163,7 +167,7 @@ def run_scraper(username, password, loops, skip, headless=True):
                         log_message("No rows found on this page. Stopping.")
                         break
 
-                    processed = process_browse_page(page, skip_rows, remaining, writer, f, progress_bar, status_text)
+                    processed = process_browse_page(page, skip_rows, remaining, writer, f, progress_bar, status_text, browse_url, base_domain)
                     remaining -= processed
                     skip_rows = 0
 
@@ -206,6 +210,12 @@ with st.sidebar:
 
     st.divider()
 
+    browse_url = st.text_input("Browse URL",
+                                value="https://digital.lib.buffalo.edu/admin/items/browse?collection=30",
+                                help="The URL to browse items (change the collection number as needed)")
+
+    st.divider()
+
     loops = st.number_input("Number of Rows to Process", min_value=1, max_value=1000, value=10,
                             help="How many rows to process")
     skip = st.number_input("Rows to Skip", min_value=0, max_value=1000, value=0,
@@ -221,6 +231,8 @@ with st.sidebar:
     if start_button:
         if not username or not password:
             st.error("Please provide both username and password!")
+        elif not browse_url:
+            st.error("Please provide a browse URL!")
         else:
             st.session_state.scraping = True
             st.session_state.logs = []
@@ -234,7 +246,7 @@ with col1:
 
     if st.session_state.scraping:
         with st.spinner("Scraping in progress..."):
-            success = run_scraper(username, password, loops, skip, headless)
+            success = run_scraper(username, password, loops, skip, browse_url, headless)
             st.session_state.scraping = False
             if success:
                 st.success("Scraping completed successfully!")
