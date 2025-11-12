@@ -284,6 +284,17 @@ with col2:
             mime="text/csv",
             use_container_width=True
         )
+
+        # Clear data button
+        if st.button("🗑️ Clear Data", use_container_width=True, type="secondary"):
+            try:
+                csv_file.unlink()
+                st.session_state.csv_data = None
+                st.success("Data cleared successfully!")
+                time.sleep(0.5)
+                st.rerun()
+            except Exception as e:
+                st.error(f"Error clearing data: {e}")
     else:
         st.info("No results yet. Start scraping to see stats.")
 
