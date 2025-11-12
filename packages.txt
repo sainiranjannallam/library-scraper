@@ -13,3 +13,8 @@ libgbm1
 libasound2
 libatspi2.0-0
 libxshmfence1
+libcairo2
+libpango-1.0-0
+libglib2.0-0
+fonts-liberation
+libappindicator3-1
