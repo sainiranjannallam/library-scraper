@@ -6,6 +6,33 @@ import time
 import pandas as pd
 from io import StringIO
 import os
+import subprocess
+import sys
+
+# Install Playwright browsers if not already installed
+@st.cache_resource
+def install_playwright_browsers():
+    """Install Playwright browsers on first run"""
+    try:
+        # Try to launch browser, this will fail if not installed
+        with sync_playwright() as p:
+            try:
+                browser = p.chromium.launch(headless=True)
+                browser.close()
+                return True
+            except Exception:
+                # Browsers not installed, install them
+                st.info("Installing Playwright browsers... This may take a few minutes on first run.")
+                subprocess.run([sys.executable, "-m", "playwright", "install", "chromium"], check=True)
+                subprocess.run([sys.executable, "-m", "playwright", "install-deps", "chromium"], check=True)
+                st.success("Playwright browsers installed successfully!")
+                return True
+    except Exception as e:
+        st.error(f"Failed to install Playwright browsers: {e}")
+        return False
+
+# Install browsers before app starts
+install_playwright_browsers()
 
 st.set_page_config(
     page_title="Digital Library Scraper",
