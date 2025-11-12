@@ -23,8 +23,15 @@ def install_playwright_browsers():
             except Exception:
                 # Browsers not installed, install them
                 st.info("Installing Playwright browsers... This may take a few minutes on first run.")
-                subprocess.run([sys.executable, "-m", "playwright", "install", "chromium", "--with-deps"], check=False)
-                st.success("Playwright browsers installed successfully!")
+                result = subprocess.run(
+                    [sys.executable, "-m", "playwright", "install", "chromium"],
+                    capture_output=True,
+                    text=True
+                )
+                if result.returncode == 0:
+                    st.success("Playwright browsers installed successfully!")
+                else:
+                    st.warning("Browser installation completed with warnings. Attempting to continue...")
                 return True
     except Exception as e:
         st.error(f"Failed to install Playwright browsers: {e}")
